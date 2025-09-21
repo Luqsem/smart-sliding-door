@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Smart Sliding Door Dashboard</title>
+  <title>Smart Slide Rain Detector</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
   <style>
     body {
@@ -73,7 +73,7 @@
   </style>
 </head>
 <body>
-  <h1>🚪 Smart Sliding Door Control</h1>
+  <h1>🚪 Smart Slide Rain Detector Web</h1>
 
   <div class="card">
     <h3>Status</h3>
@@ -94,15 +94,25 @@
     <img id="cameraImg" src="" alt="No image yet">
     <br>
     <button onclick="refreshImage()">🔄 Refresh Image</button>
+    <button onclick="captureNow()">📸 Capture Now</button>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    // 🔥 Replace with your Firebase config
-    const firebaseConfig = YOUR_FIREBASE_CONFIG_HERE;
+    // 🔥 Firebase Config – ganti dengan config projek anda
+    const firebaseConfig = {
+      apiKey: "AIzaSyDBWkaxkI990NMePuKA8kY8aPdQz0ti_HQ",
+      authDomain: "smart-slide.firebaseapp.com",
+      databaseURL: "https://smart-slide-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "smart-slide",
+      storageBucket: "smart-slide.firebasestorage.app",
+      messagingSenderId: "945104273089",
+      appId: "1:945104273089:web:c83d4930dae2a7d6415e40"
+    };
 
+    // Init Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
@@ -111,7 +121,7 @@
     const doorEl = document.getElementById("doorStatus");
     const camImg = document.getElementById("cameraImg");
 
-    // Subscribe to sensor updates
+    // 📡 Subscribe sensor updates
     onValue(ref(db, "sensors/latest"), (snap) => {
       const val = snap.val();
       if (!val) return;
@@ -126,7 +136,7 @@
       }
 
       // Light
-      lightEl.textContent = val.light;
+      lightEl.textContent = val.light || "--";
 
       // Door
       if (val.door === "OPEN") {
@@ -138,15 +148,15 @@
       }
     });
 
-    // Show last camera event
+    // 📷 Show last camera event
     onValue(ref(db, "sensors/lastEvent"), (snap) => {
       const val = snap.val();
       if (val && val.img) {
-        camImg.src = val.img + "&t=" + Date.now(); // prevent cache
+        camImg.src = val.img + "&t=" + Date.now();
       }
     });
 
-    // Refresh manually
+    // 🔄 Refresh camera
     function refreshImage() {
       get(ref(db, "device/ip")).then((snap) => {
         const ip = snap.val();
@@ -157,12 +167,19 @@
     }
     window.refreshImage = refreshImage;
 
-    // Send door commands
+    // 🚪 Send door commands
     function sendCommand(cmd) {
       set(ref(db, "command/door"), cmd);
       alert("Command sent: " + cmd);
     }
     window.sendCommand = sendCommand;
+
+    // 📸 Capture now
+    function captureNow() {
+      set(ref(db, "command/capture"), "NOW");
+      alert("Capture command sent");
+    }
+    window.captureNow = captureNow;
   </script>
 </body>
 </html>
