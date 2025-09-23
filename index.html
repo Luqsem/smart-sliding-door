@@ -13,7 +13,11 @@
       margin: 0;
       padding: 20px;
     }
-    h1 { color: #00eaff; text-shadow: 0 0 15px #00eaff; margin-bottom: 30px; }
+    h1 {
+      color: #00eaff;
+      text-shadow: 0 0 15px #00eaff;
+      margin-bottom: 30px;
+    }
     .card {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(0, 234, 255, 0.2);
@@ -34,7 +38,11 @@
       cursor: pointer;
       transition: all 0.3s ease;
     }
-    button:hover { background: #00eaff; color: #0f2027; box-shadow: 0 0 15px #00eaff; }
+    button:hover {
+      background: #00eaff;
+      color: #0f2027;
+      box-shadow: 0 0 15px #00eaff;
+    }
     .status-text { font-size: 18px; margin: 10px 0; }
     .badge { padding: 6px 12px; border-radius: 12px; font-weight: bold; margin-left: 8px; }
     .rain-on { background: #ff1744; color: #fff; }
@@ -48,16 +56,14 @@
 <body>
   <h1>🚪 Smart Slide Rain Detector</h1>
 
-  <!-- Status Panel -->
   <div class="card">
     <h3>Status</h3>
     <p class="status-text">Rain: <span id="rainStatus" class="badge">--</span></p>
     <p class="status-text">Light: <span id="lightStatus">--</span></p>
     <p class="status-text">Door: <span id="doorStatus" class="badge">--</span></p>
-    <p class="status-text">Holiday Schedule: <span id="holidayStatus" class="badge">--</span></p>
+    <p class="status-text">Holiday Mode: <span id="holidayStatus" class="badge">--</span></p>
   </div>
 
-  <!-- Controls -->
   <div class="card">
     <h3>Controls</h3>
     <button onclick="sendCommand('OPEN')">Open Door</button>
@@ -69,12 +75,12 @@
     </div>
   </div>
 
-  <!-- Holiday Schedule -->
   <div class="card">
     <h3>Holiday Schedule</h3>
     <p>Start: <input type="datetime-local" id="holidayStart"></p>
     <p>End: <input type="datetime-local" id="holidayEnd"></p>
     <button onclick="saveHoliday()">Save Holiday Schedule</button>
+    <p id="holidayInfo" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
   </div>
 
   <script type="module">
@@ -92,90 +98,77 @@
       appId: "1:945104273089:web:c83d4930dae2a7d6415e40"
     };
 
-    // Init Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // DOM refs
     const rainEl = document.getElementById("rainStatus");
     const lightEl = document.getElementById("lightStatus");
     const doorEl = document.getElementById("doorStatus");
     const holidayEl = document.getElementById("holidayStatus");
+    const holidayInfo = document.getElementById("holidayInfo");
     const confirmBox = document.getElementById("confirmBox");
 
-    // ===== Sensors =====
+    // 📡 Sensor Updates
     onValue(ref(db, "sensors/latest"), (snap) => {
       const val = snap.val();
       if (!val) return;
-
-      // Rain
-      if (val.rain === "RAIN") {
-        rainEl.textContent = "RAIN";
-        rainEl.className = "badge rain-on";
-      } else {
-        rainEl.textContent = "NO RAIN";
-        rainEl.className = "badge rain-off";
-      }
-
-      // Light
+      rainEl.textContent = (val.rain === "RAIN") ? "RAIN" : "NO RAIN";
+      rainEl.className = "badge " + ((val.rain === "RAIN") ? "rain-on" : "rain-off");
       lightEl.textContent = val.light || "--";
-
-      // Door
-      if (val.door === "OPEN") {
-        doorEl.textContent = "OPEN";
-        doorEl.className = "badge door-open";
-      } else {
-        doorEl.textContent = "CLOSED";
-        doorEl.className = "badge door-closed";
-      }
+      doorEl.textContent = val.door || "--";
+      doorEl.className = "badge " + ((val.door === "OPEN") ? "door-open" : "door-closed");
     });
 
-    // ===== Holiday schedule =====
-    async function updateHolidayStatus() {
+    // 📡 Holiday Schedule Status
+    async function checkHoliday() {
       const startSnap = await get(ref(db, "settings/holidayStart"));
       const endSnap = await get(ref(db, "settings/holidayEnd"));
       const start = startSnap.val();
       const end = endSnap.val();
-      if (start && end) {
-        holidayEl.textContent = `${start} → ${end}`;
+      if (!start || !end) {
+        holidayEl.textContent = "OFF";
+        holidayEl.className = "badge holiday-off";
+        holidayInfo.textContent = "No holiday schedule set.";
+        return;
+      }
+      const now = new Date();
+      const startDate = new Date(start.replace(" ", "T"));
+      const endDate = new Date(end.replace(" ", "T"));
+      holidayInfo.textContent = `⏳ ${start} → ${end}`;
+      if (now >= startDate && now <= endDate) {
+        holidayEl.textContent = "ON";
         holidayEl.className = "badge holiday-on";
       } else {
-        holidayEl.textContent = "Not Set";
+        holidayEl.textContent = "OFF";
         holidayEl.className = "badge holiday-off";
       }
     }
-    updateHolidayStatus();
+    setInterval(checkHoliday, 5000); // refresh holiday status setiap 5s
 
-    // ===== Confirmation =====
+    // 📡 Confirmation Request
     onValue(ref(db, "command/confirm"), (snap) => {
-      const val = snap.val();
-      console.log("Confirm value:", val);
-      if (val === "NEEDED") {
-        confirmBox.style.display = "block";
-      } else {
-        confirmBox.style.display = "none";
-      }
+      confirmBox.style.display = (snap.val() === "NEEDED") ? "block" : "none";
     });
 
-    // ===== Door commands =====
+    // 🚪 Send Door Command
     function sendCommand(cmd) {
       set(ref(db, "command/door"), cmd);
       alert("Command sent: " + cmd);
     }
     window.sendCommand = sendCommand;
 
-    // ===== Holiday Save =====
+    // ✅ Save Holiday
     async function saveHoliday() {
       const start = document.getElementById("holidayStart").value.replace("T"," ")+":00";
       const end = document.getElementById("holidayEnd").value.replace("T"," ")+":00";
       await set(ref(db, "settings/holidayStart"), start);
       await set(ref(db, "settings/holidayEnd"), end);
       alert("Holiday schedule saved!");
-      updateHolidayStatus();
+      checkHoliday();
     }
     window.saveHoliday = saveHoliday;
 
-    // ===== Confirm =====
+    // ✅ Confirm Request
     function sendConfirm(ans) {
       set(ref(db, "command/confirm"), ans);
       if (ans === "YES") alert("✅ Confirmed: Door will open");
