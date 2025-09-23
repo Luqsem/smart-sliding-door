@@ -13,11 +13,7 @@
       margin: 0;
       padding: 20px;
     }
-    h1 {
-      color: #00eaff;
-      text-shadow: 0 0 15px #00eaff;
-      margin-bottom: 30px;
-    }
+    h1 { color: #00eaff; text-shadow: 0 0 15px #00eaff; margin-bottom: 30px; }
     .card {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(0, 234, 255, 0.2);
@@ -38,11 +34,7 @@
       cursor: pointer;
       transition: all 0.3s ease;
     }
-    button:hover {
-      background: #00eaff;
-      color: #0f2027;
-      box-shadow: 0 0 15px #00eaff;
-    }
+    button:hover { background: #00eaff; color: #0f2027; box-shadow: 0 0 15px #00eaff; }
     .status-text { font-size: 18px; margin: 10px 0; }
     .badge { padding: 6px 12px; border-radius: 12px; font-weight: bold; margin-left: 8px; }
     .rain-on { background: #ff1744; color: #fff; }
@@ -56,52 +48,40 @@
 <body>
   <h1>🚪 Smart Slide Rain Detector</h1>
 
+  <!-- Status Panel -->
   <div class="card">
     <h3>Status</h3>
     <p class="status-text">Rain: <span id="rainStatus" class="badge">--</span></p>
     <p class="status-text">Light: <span id="lightStatus">--</span></p>
     <p class="status-text">Door: <span id="doorStatus" class="badge">--</span></p>
-    <p class="status-text">Holiday Mode: <span id="holidayStatus" class="badge">--</span></p>
+    <p class="status-text">Holiday Schedule: <span id="holidayStatus" class="badge">--</span></p>
   </div>
 
+  <!-- Controls -->
   <div class="card">
     <h3>Controls</h3>
     <button onclick="sendCommand('OPEN')">Open Door</button>
     <button onclick="sendCommand('CLOSE')">Close Door</button>
-    <button onclick="toggleHoliday()">Toggle Holiday Mode</button>
     <div id="confirmBox" style="margin-top:15px; display:none;">
       <p>Holiday Mode ON – Confirm to Open?</p>
       <button onclick="sendConfirm('YES')">✅ Confirm</button>
       <button onclick="sendConfirm('IDLE')">❌ Cancel</button>
     </div>
   </div>
-<div class="card">
-  <h3>Holiday Schedule</h3>
-  <p>Start: <input type="datetime-local" id="holidayStart"></p>
-  <p>End: <input type="datetime-local" id="holidayEnd"></p>
-  <button onclick="saveHoliday()">Save Holiday Schedule</button>
-</div>
 
-<script type="module">
-  import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import { db } from "./firebase-init.js"; // ikut setup anda
-
-  // Simpan ke Firebase
-  async function saveHoliday() {
-    const start = document.getElementById("holidayStart").value.replace("T"," ")+":00";
-    const end = document.getElementById("holidayEnd").value.replace("T"," ")+":00";
-    await set(ref(db, "settings/holidayStart"), start);
-    await set(ref(db, "settings/holidayEnd"), end);
-    alert("Holiday schedule saved!");
-  }
-  window.saveHoliday = saveHoliday;
-</script>
+  <!-- Holiday Schedule -->
+  <div class="card">
+    <h3>Holiday Schedule</h3>
+    <p>Start: <input type="datetime-local" id="holidayStart"></p>
+    <p>End: <input type="datetime-local" id="holidayEnd"></p>
+    <button onclick="saveHoliday()">Save Holiday Schedule</button>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set, get, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    // 🔥 Firebase Config – ganti dengan config projek anda
+    // 🔥 Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDBWkaxkI990NMePuKA8kY8aPdQz0ti_HQ",
       authDomain: "smart-slide.firebaseapp.com",
@@ -116,13 +96,14 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // DOM refs
     const rainEl = document.getElementById("rainStatus");
     const lightEl = document.getElementById("lightStatus");
     const doorEl = document.getElementById("doorStatus");
     const holidayEl = document.getElementById("holidayStatus");
     const confirmBox = document.getElementById("confirmBox");
 
-    // 📡 Sensor Updates
+    // ===== Sensors =====
     onValue(ref(db, "sensors/latest"), (snap) => {
       const val = snap.val();
       if (!val) return;
@@ -149,21 +130,26 @@
       }
     });
 
-    // 📡 Holiday Mode Updates
-    onValue(ref(db, "settings/holiday"), (snap) => {
-      const holiday = snap.val();
-      if (holiday) {
-        holidayEl.textContent = "ON";
+    // ===== Holiday schedule =====
+    async function updateHolidayStatus() {
+      const startSnap = await get(ref(db, "settings/holidayStart"));
+      const endSnap = await get(ref(db, "settings/holidayEnd"));
+      const start = startSnap.val();
+      const end = endSnap.val();
+      if (start && end) {
+        holidayEl.textContent = `${start} → ${end}`;
         holidayEl.className = "badge holiday-on";
       } else {
-        holidayEl.textContent = "OFF";
+        holidayEl.textContent = "Not Set";
         holidayEl.className = "badge holiday-off";
       }
-    });
+    }
+    updateHolidayStatus();
 
-    // 📡 Confirmation Request
+    // ===== Confirmation =====
     onValue(ref(db, "command/confirm"), (snap) => {
       const val = snap.val();
+      console.log("Confirm value:", val);
       if (val === "NEEDED") {
         confirmBox.style.display = "block";
       } else {
@@ -171,22 +157,25 @@
       }
     });
 
-    // 🚪 Send Door Command
+    // ===== Door commands =====
     function sendCommand(cmd) {
       set(ref(db, "command/door"), cmd);
       alert("Command sent: " + cmd);
     }
     window.sendCommand = sendCommand;
 
-    // 🏖 Toggle Holiday Mode
-    async function toggleHoliday() {
-      const snap = await get(ref(db, "settings/holiday"));
-      const current = snap.val();
-      set(ref(db, "settings/holiday"), !current);
+    // ===== Holiday Save =====
+    async function saveHoliday() {
+      const start = document.getElementById("holidayStart").value.replace("T"," ")+":00";
+      const end = document.getElementById("holidayEnd").value.replace("T"," ")+":00";
+      await set(ref(db, "settings/holidayStart"), start);
+      await set(ref(db, "settings/holidayEnd"), end);
+      alert("Holiday schedule saved!");
+      updateHolidayStatus();
     }
-    window.toggleHoliday = toggleHoliday;
+    window.saveHoliday = saveHoliday;
 
-    // ✅ Confirm Request
+    // ===== Confirm =====
     function sendConfirm(ans) {
       set(ref(db, "command/confirm"), ans);
       if (ans === "YES") alert("✅ Confirmed: Door will open");
