@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- penting -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Slide Rain Detector</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
   <style>
@@ -18,7 +18,7 @@
       color: #00eaff;
       text-shadow: 0 0 15px #00eaff;
       margin-bottom: 20px;
-      font-size: 6vw; /* responsive heading */
+      font-size: 6vw;
     }
     .card {
       background: rgba(255, 255, 255, 0.05);
@@ -27,7 +27,7 @@
       padding: 20px;
       margin: 15px auto;
       max-width: 600px;
-      width: 90%; /* responsive */
+      width: 90%;
       box-shadow: 0 0 20px rgba(0, 234, 255, 0.1);
     }
     button {
@@ -40,7 +40,7 @@
       font-size: 4vw;
       cursor: pointer;
       transition: all 0.3s ease;
-      min-width: 40%; /* bagi nampak balance */
+      min-width: 40%;
     }
     button:hover {
       background: #00eaff;
@@ -62,7 +62,6 @@
     .holiday-on { background: #ff3d00; color: #fff; }
     .holiday-off { background: #00c853; color: #fff; }
 
-    /* Responsive rules untuk skrin kecil */
     @media (max-width: 600px) {
       h1 { font-size: 7vw; }
       .status-text { font-size: 5vw; }
@@ -100,6 +99,92 @@
     <p id="holidayInfo" style="margin-top:10px; font-size:3.5vw; color:#ccc;"></p>
   </div>
 
-  <!-- 🔗 Firebase scripts kekalkan sama dengan versi sebelum ni -->
+  <!-- ✅ Firebase compat version (works on mobile browser) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDBWkaxkI990NMePuKA8kY8aPdQz0ti_HQ",
+      authDomain: "smart-slide.firebaseapp.com",
+      databaseURL: "https://smart-slide-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "smart-slide",
+      storageBucket: "smart-slide.appspot.com",
+      messagingSenderId: "945104273089",
+      appId: "1:945104273089:web:c83d4930dae2a7d6415e40"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const rainEl = document.getElementById("rainStatus");
+    const lightEl = document.getElementById("lightStatus");
+    const doorEl = document.getElementById("doorStatus");
+    const holidayEl = document.getElementById("holidayStatus");
+    const confirmBox = document.getElementById("confirmBox");
+    const holidayInfo = document.getElementById("holidayInfo");
+
+    // 📡 Sensor Updates
+    db.ref("sensors/latest").on("value", (snap) => {
+      const val = snap.val();
+      if (!val) return;
+      // Rain
+      if (val.rain === "RAIN") {
+        rainEl.textContent = "RAIN";
+        rainEl.className = "badge rain-on";
+      } else {
+        rainEl.textContent = "NO RAIN";
+        rainEl.className = "badge rain-off";
+      }
+      // Light
+      lightEl.textContent = val.light || "--";
+      // Door
+      if (val.door === "OPEN") {
+        doorEl.textContent = "OPEN";
+        doorEl.className = "badge door-open";
+      } else {
+        doorEl.textContent = "CLOSED";
+        doorEl.className = "badge door-closed";
+      }
+    });
+
+    // 📡 Holiday Mode Updates
+    db.ref("settings/holiday").on("value", (snap) => {
+      const holiday = snap.val();
+      if (holiday) {
+        holidayEl.textContent = "ON";
+        holidayEl.className = "badge holiday-on";
+      } else {
+        holidayEl.textContent = "OFF";
+        holidayEl.className = "badge holiday-off";
+      }
+    });
+
+    // 📡 Confirmation Request
+    db.ref("command/confirm").on("value", (snap) => {
+      const val = snap.val();
+      confirmBox.style.display = (val === "NEEDED") ? "block" : "none";
+    });
+
+    // 🚪 Send Door Command
+    function sendCommand(cmd) {
+      db.ref("command/door").set(cmd);
+      alert("Command sent: " + cmd);
+    }
+
+    // ✅ Confirm Request
+    function sendConfirm(ans) {
+      db.ref("command/confirm").set(ans);
+      if (ans === "YES") alert("✅ Confirmed: Door will open");
+      else alert("❌ Cancelled");
+    }
+
+    // 🏖 Save Holiday Schedule
+    function saveHoliday() {
+      const start = document.getElementById("holidayStart").value.replace("T"," ")+":00";
+      const end = document.getElementById("holidayEnd").value.replace("T"," ")+":00";
+      db.ref("settings/holidayStart").set(start);
+      db.ref("settings/holidayEnd").set(end);
+      holidayInfo.textContent = "Saved: " + start + " → " + end;
+    }
+  </script>
 </body>
 </html>
