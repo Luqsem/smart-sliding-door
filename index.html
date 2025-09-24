@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- penting -->
   <title>Smart Slide Rain Detector</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
   <style>
@@ -12,62 +11,46 @@
       color: #e0e0e0;
       text-align: center;
       margin: 0;
-      padding: 15px;
+      padding: 20px;
     }
     h1 {
       color: #00eaff;
       text-shadow: 0 0 15px #00eaff;
-      margin-bottom: 20px;
-      font-size: 6vw; /* responsive heading */
+      margin-bottom: 30px;
     }
     .card {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(0, 234, 255, 0.2);
       border-radius: 15px;
-      padding: 20px;
-      margin: 15px auto;
-      max-width: 600px;
-      width: 90%; /* responsive */
+      padding: 25px;
+      margin: 20px auto;
+      max-width: 500px;
       box-shadow: 0 0 20px rgba(0, 234, 255, 0.1);
     }
     button {
       background: none;
       border: 2px solid #00eaff;
       color: #00eaff;
-      padding: 14px 18px;
+      padding: 12px 20px;
       margin: 8px;
       border-radius: 8px;
-      font-size: 4vw;
+      font-size: 14px;
       cursor: pointer;
       transition: all 0.3s ease;
-      min-width: 40%; /* bagi nampak balance */
     }
     button:hover {
       background: #00eaff;
       color: #0f2027;
       box-shadow: 0 0 15px #00eaff;
     }
-    .status-text { font-size: 4vw; margin: 8px 0; }
-    .badge {
-      padding: 6px 12px;
-      border-radius: 12px;
-      font-weight: bold;
-      margin-left: 8px;
-      display: inline-block;
-    }
+    .status-text { font-size: 18px; margin: 10px 0; }
+    .badge { padding: 6px 12px; border-radius: 12px; font-weight: bold; margin-left: 8px; }
     .rain-on { background: #ff1744; color: #fff; }
     .rain-off { background: #00e676; color: #fff; }
     .door-open { background: #2979ff; color: #fff; }
     .door-closed { background: #ff9100; color: #fff; }
     .holiday-on { background: #ff3d00; color: #fff; }
     .holiday-off { background: #00c853; color: #fff; }
-
-    /* Responsive rules untuk skrin kecil */
-    @media (max-width: 600px) {
-      h1 { font-size: 7vw; }
-      .status-text { font-size: 5vw; }
-      button { font-size: 5vw; width: 80%; margin-top: 10px; }
-    }
   </style>
 </head>
 <body>
@@ -85,21 +68,131 @@
     <h3>Controls</h3>
     <button onclick="sendCommand('OPEN')">Open Door</button>
     <button onclick="sendCommand('CLOSE')">Close Door</button>
+    <button onclick="toggleHoliday()">Toggle Holiday Mode</button>
     <div id="confirmBox" style="margin-top:15px; display:none;">
-      <p style="font-size:4vw;">Holiday Mode ON – Confirm to Open?</p>
+      <p>Holiday Mode ON – Confirm to Open?</p>
       <button onclick="sendConfirm('YES')">✅ Confirm</button>
       <button onclick="sendConfirm('IDLE')">❌ Cancel</button>
     </div>
   </div>
+<div class="card">
+  <h3>Holiday Schedule</h3>
+  <p>Start: <input type="datetime-local" id="holidayStart"></p>
+  <p>End: <input type="datetime-local" id="holidayEnd"></p>
+  <button onclick="saveHoliday()">Save Holiday Schedule</button>
+</div>
 
-  <div class="card">
-    <h3>Holiday Schedule</h3>
-    <p>Start: <input type="datetime-local" id="holidayStart"></p>
-    <p>End: <input type="datetime-local" id="holidayEnd"></p>
-    <button onclick="saveHoliday()">Save Holiday Schedule</button>
-    <p id="holidayInfo" style="margin-top:10px; font-size:3.5vw; color:#ccc;"></p>
-  </div>
+<script type="module">
+  import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { db } from "./firebase-init.js"; // ikut setup anda
 
-  <!-- 🔗 Firebase scripts kekalkan sama dengan versi sebelum ni -->
+  // Simpan ke Firebase
+  async function saveHoliday() {
+    const start = document.getElementById("holidayStart").value.replace("T"," ")+":00";
+    const end = document.getElementById("holidayEnd").value.replace("T"," ")+":00";
+    await set(ref(db, "settings/holidayStart"), start);
+    await set(ref(db, "settings/holidayEnd"), end);
+    alert("Holiday schedule saved!");
+  }
+  window.saveHoliday = saveHoliday;
+</script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, get, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // 🔥 Firebase Config – ganti dengan config projek anda
+    const firebaseConfig = {
+      apiKey: "AIzaSyDBWkaxkI990NMePuKA8kY8aPdQz0ti_HQ",
+      authDomain: "smart-slide.firebaseapp.com",
+      databaseURL: "https://smart-slide-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "smart-slide",
+      storageBucket: "smart-slide.firebasestorage.app",
+      messagingSenderId: "945104273089",
+      appId: "1:945104273089:web:c83d4930dae2a7d6415e40"
+    };
+
+    // Init Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const rainEl = document.getElementById("rainStatus");
+    const lightEl = document.getElementById("lightStatus");
+    const doorEl = document.getElementById("doorStatus");
+    const holidayEl = document.getElementById("holidayStatus");
+    const confirmBox = document.getElementById("confirmBox");
+
+    // 📡 Sensor Updates
+    onValue(ref(db, "sensors/latest"), (snap) => {
+      const val = snap.val();
+      if (!val) return;
+
+      // Rain
+      if (val.rain === "RAIN") {
+        rainEl.textContent = "RAIN";
+        rainEl.className = "badge rain-on";
+      } else {
+        rainEl.textContent = "NO RAIN";
+        rainEl.className = "badge rain-off";
+      }
+
+      // Light
+      lightEl.textContent = val.light || "--";
+
+      // Door
+      if (val.door === "OPEN") {
+        doorEl.textContent = "OPEN";
+        doorEl.className = "badge door-open";
+      } else {
+        doorEl.textContent = "CLOSED";
+        doorEl.className = "badge door-closed";
+      }
+    });
+
+    // 📡 Holiday Mode Updates
+    onValue(ref(db, "settings/holiday"), (snap) => {
+      const holiday = snap.val();
+      if (holiday) {
+        holidayEl.textContent = "ON";
+        holidayEl.className = "badge holiday-on";
+      } else {
+        holidayEl.textContent = "OFF";
+        holidayEl.className = "badge holiday-off";
+      }
+    });
+
+    // 📡 Confirmation Request
+    onValue(ref(db, "command/confirm"), (snap) => {
+      const val = snap.val();
+      if (val === "NEEDED") {
+        confirmBox.style.display = "block";
+      } else {
+        confirmBox.style.display = "none";
+      }
+    });
+
+    // 🚪 Send Door Command
+    function sendCommand(cmd) {
+      set(ref(db, "command/door"), cmd);
+      alert("Command sent: " + cmd);
+    }
+    window.sendCommand = sendCommand;
+
+    // 🏖 Toggle Holiday Mode
+    async function toggleHoliday() {
+      const snap = await get(ref(db, "settings/holiday"));
+      const current = snap.val();
+      set(ref(db, "settings/holiday"), !current);
+    }
+    window.toggleHoliday = toggleHoliday;
+
+    // ✅ Confirm Request
+    function sendConfirm(ans) {
+      set(ref(db, "command/confirm"), ans);
+      if (ans === "YES") alert("✅ Confirmed: Door will open");
+      else alert("❌ Cancelled");
+    }
+    window.sendConfirm = sendConfirm;
+  </script>
 </body>
 </html>
